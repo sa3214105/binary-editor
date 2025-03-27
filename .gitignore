@@ -1,0 +1,64 @@
+# 編譯輸出
+/build/
+/bin/
+/obj/
+/out/
+
+# CMake 生成的文件
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Visual Studio 相關文件
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.ncb
+*.user
+*.cache
+*.pdb
+*.ipch
+*.opensdf
+*.tlog
+*.log
+*.obj
+*.idb
+*.ilk
+*.aps
+*.pch
+*.vs
+*.vscode/
+
+# 編譯器生成的文件
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+*.lib
+*.exe
+
+# 臨時文件
+*.tmp
+*.temp
+*.log
+*.swp
+*.DS_Store
+*.~*
+
+# vcpkg 相關文件
+/vcpkg_installed/
+/vcpkg/
+
+# 測試框架生成的文件
+Testing/
+CTestTestfile.cmake
+LastTest.log
+
+# IDE 相關文件
+.idea/
+*.iml
+*.code-workspace
