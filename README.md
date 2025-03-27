@@ -20,13 +20,6 @@ A lightweight and efficient binary file editor.
     ```
 3. Follow the setup instructions in the documentation.
 
-## Usage
-
-Run the editor:
-```bash
-binary-editor <file>
-```
-
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
