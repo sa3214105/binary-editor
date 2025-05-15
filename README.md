@@ -5,7 +5,6 @@ A lightweight and efficient binary file editor.
 ## Features
 
 - Edit binary files with ease.
-- Hexadecimal and ASCII views.
 - Cross-platform support.
 
 ## Installation
