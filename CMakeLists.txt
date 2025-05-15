@@ -32,4 +32,5 @@ target_link_libraries(unit_binary_editor GTest::gtest GTest::gtest_main)
 
 # 添加測試
 enable_testing()
-add_test(NAME unit_binary_editor_test COMMAND unit_binary_editor)
+include(GoogleTest)
+gtest_discover_tests(unit_binary_editor)
