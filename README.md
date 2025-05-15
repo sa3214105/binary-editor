@@ -1,5 +1,7 @@
 # Binary Editor
 
+![CI](https://github.com/sa3214105/binary-editor/actions/workflows/ci.yml/badge.svg)
+
 A lightweight and efficient binary file editor.
 
 ## Features
