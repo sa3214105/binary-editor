@@ -70,7 +70,7 @@ namespace binary
             auto pRet = std::make_shared<binary_chunk_memory>(*this);
             pRet->m_offset = offset;
             pRet->m_size = size;
-            return pRet;
+            return std::dynamic_pointer_cast<binary_chunk_interface>(pRet);
         }
         virtual size_t size() const override final
         {
@@ -210,7 +210,7 @@ namespace binary
         template<typename... Args>
         void emplace_back(Args &&... args)
         {
-            m_pChunks.push_back(binary_editor(std::forward<Args>(args)...));
+            m_pChunks.push_back(m_binary_chunk_factory.create_chunk(std::forward<Args>(args)...));
         }
         void push_front(const binary_editor &frontEditor)
         {
@@ -219,7 +219,7 @@ namespace binary
         template<typename... Args>
         void emplace_front(Args &&... args)
         {
-            m_pChunks.push_front(binary_editor(std::forward<Args>(args)...));
+            m_pChunks.push_front(m_binary_chunk_factory.create_chunk(std::forward<Args>(args)...));
         }
         void insert(const size_t &offset, const binary_editor &editor)
         {
