@@ -18,24 +18,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache apt packages
-        uses: actions/cache@v4
-        with:
-          path: /var/cache/apt/archives
-          key: apt-${{ runner.os }}-${{ hashFiles('Doxyfile') }}
-          restore-keys: |
-            apt-${{ runner.os }}-
-
       - name: Install Doxygen
         run: sudo apt-get update && sudo apt-get install -y doxygen
-
-      - name: Cache Doxygen output
-        uses: actions/cache@v4
-        with:
-          path: docs/html
-          key: doxygen-html-${{ github.sha }}
-          restore-keys: |
-            doxygen-html-
 
       - name: Generate Doxygen documentation
         run: doxygen Doxyfile
