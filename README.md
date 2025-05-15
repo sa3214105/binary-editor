@@ -1,6 +1,9 @@
 # Binary Editor
 
 ![CI](https://github.com/sa3214105/binary-editor/actions/workflows/ci.yml/badge.svg)
+[![Docs](https://img.shields.io/badge/docs-latest-blue)](https://sa3214105.github.io/binary-editor/)
+
+[**API Documentation**](https://sa3214105.github.io/binary-editor/)
 
 A lightweight and efficient binary file editor.
 

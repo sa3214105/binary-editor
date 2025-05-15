@@ -49,3 +49,5 @@ REFERENCES_RELATION    = YES
 
 # Strip code comments from output
 STRIP_CODE_COMMENTS    = NO
+
+USE_MDFILE_AS_MAINPAGE = README.md
