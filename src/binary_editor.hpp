@@ -450,13 +450,8 @@ namespace reader
      * // Or wrap as a struct:
      * struct simplesample {
      *     binary::binary_editor editor; ///< The binary editor instance.
-     *     reader::binary_reader<uint8_t> value1; ///< Reads the first byte from the editor.
-     *     reader::binary_reader<uint8_t> value2; ///< Reads the next byte from the editor (offset = value1).
-     *     simplesample(binary::binary_editor &&editor_)
-     *         : editor(std::move(editor_)),
-     *           value1(editor, 0),
-     *           value2(editor, value1)
-     *     {}
+     *     reader::binary_reader<uint8_t> value1{editor, 0}; ///< Reads the first byte from the editor.
+     *     reader::binary_reader<uint8_t> value2{editor, value1}; ///< Reads the next byte from the editor (offset = value1).
      * };
      * @endcode
      */

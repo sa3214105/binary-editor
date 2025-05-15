@@ -6,20 +6,9 @@ using namespace reader;
 
 struct simplesample
 {
-    binary::binary_editor editor;  ///< The binary editor instance.
-    binary_reader<uint8_t> value1; ///< Reads the first byte from the editor.
-    binary_reader<uint8_t> value2; ///< Reads the next byte from the editor (offset = value1).
-
-    /**
-     * @brief Construct a simplesample from a binary_editor.
-     * @param editor_ The binary_editor instance (moved in).
-     */
-    simplesample(binary::binary_editor &&editor_)
-        : editor(std::move(editor_)),
-          value1(editor, 0),
-          value2(editor, value1)
-    {
-    }
+    binary::binary_editor editor;                  ///< The binary editor instance.
+    binary_reader<uint8_t> value1{editor, 0};      ///< Reads the first byte from the editor.
+    binary_reader<uint8_t> value2{editor, value1}; ///< Reads the next byte from the editor (offset = value1).
 };
 
 TEST(BinaryReaderTest, ReadValues)
@@ -28,7 +17,7 @@ TEST(BinaryReaderTest, ReadValues)
     std::vector<uint8_t> blob = {2, 99, 255};
 
     // Create sample
-    simplesample sample(binary_editor(blob.data(), blob.size()));
+    simplesample sample{.editor = binary_editor(blob.data(), blob.size())};
 
     // Test value1 and value2
     EXPECT_EQ(sample.value1.get(), 2);
