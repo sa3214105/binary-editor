@@ -1,0 +1,51 @@
+# Doxyfile 1.10.0 - Doxygen configuration for binary-editor
+
+# Project related configuration
+PROJECT_NAME           = "binary-editor"
+PROJECT_BRIEF          = "A binary editor library"
+OUTPUT_DIRECTORY       = docs
+CREATE_SUBDIRS         = NO
+
+# Input
+INPUT                  = ./src
+RECURSIVE              = YES
+FILE_PATTERNS          = *.hpp *.cpp *.h
+
+# Output formats
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+
+# Extract all entities
+EXTRACT_ALL            = YES
+
+# Source code browsing
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = YES
+
+# Warnings
+WARN_IF_UNDOCUMENTED   = YES
+
+# Language
+OUTPUT_LANGUAGE        = English
+
+# Show class inheritance diagrams (requires dot)
+HAVE_DOT               = NO
+
+# Show brief member descriptions on their own line
+BRIEF_MEMBER_DESC      = YES
+
+# Sort members as in source
+SORT_MEMBER_DOCS       = NO
+
+# Show files in the file list
+SHOW_FILES             = YES
+
+# Show directories in the file list
+SHOW_DIRECTORIES       = YES
+
+# Enable references to source code
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+# Strip code comments from output
+STRIP_CODE_COMMENTS    = NO

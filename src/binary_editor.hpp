@@ -3,44 +3,95 @@
 #include <string>
 #include <deque>
 #include <iterator>
+
 namespace binary
 {
+    /**
+     * @brief Exception class for binary editor errors.
+     */
     class binary_exception : public std::exception
     {
     protected:
         std::string m_error_msg;
 
     public:
+        /**
+         * @brief Construct a binary_exception with an error message.
+         * @param errorMsg The error message.
+         */
         binary_exception(const std::string &errorMsg)
             : m_error_msg(errorMsg)
         {
         }
+        /**
+         * @brief Construct a binary_exception with an rvalue error message.
+         * @param errorMsg The error message.
+         */
         binary_exception(std::string &&errorMsg)
             : m_error_msg(std::move(errorMsg))
         {
         }
+        /**
+         * @brief Get the error message.
+         * @return The error message as a C-string.
+         */
         virtual const char *what() const noexcept override
         {
             return m_error_msg.c_str();
         }
     };
 
+    /**
+     * @brief Enum for chunk types.
+     */
     enum class CHUNK_TYPE
     {
-        MEMORY
+        MEMORY ///< Memory chunk
     };
 
+    /**
+     * @brief Interface for binary chunk.
+     */
     class binary_chunk_interface
     {
     public:
+        /**
+         * @brief Create a sub-chunk from this chunk.
+         * @param offset The offset to start from.
+         * @param size The size of the sub-chunk.
+         * @return Shared pointer to the sub-chunk.
+         */
         virtual std::shared_ptr<binary_chunk_interface> create_sub_chunk(const size_t &offset, const size_t &size) const = 0;
+        /**
+         * @brief Get the size of the chunk.
+         * @return The size in bytes.
+         */
         virtual size_t size() const = 0;
+        /**
+         * @brief Get the data pointer of the chunk.
+         * @return Pointer to the data.
+         */
         virtual const uint8_t *get_data() const = 0;
+        /**
+         * @brief Get the type of the chunk.
+         * @return The chunk type.
+         */
         virtual CHUNK_TYPE get_type() const = 0;
+        /**
+         * @brief Clone the chunk.
+         * @return Unique pointer to the cloned chunk.
+         */
         virtual std::unique_ptr<binary_chunk_interface> clone() const = 0;
+        /**
+         * @brief Downscale the chunk size.
+         * @param targeSize The new size.
+         */
         virtual void downscale_size(const size_t &targeSize) = 0;
     };
 
+    /**
+     * @brief Implementation of a memory chunk.
+     */
     class binary_chunk_memory : public binary_chunk_interface
     {
     private:
@@ -48,6 +99,13 @@ namespace binary
         size_t m_size = 0;
         size_t m_offset = 0;
     public:
+        /**
+         * @brief Construct a memory chunk.
+         * @param pBlob The data pointer.
+         * @param size The size of the data.
+         * @param offset The offset in the data.
+         * @throws binary_exception if offset > size or pBlob is nullptr.
+         */
         binary_chunk_memory(std::unique_ptr<const uint8_t[]> &&pBlob, const size_t &size, const size_t &offset = 0)
             : m_size(size), m_offset(offset)
         {
@@ -61,6 +119,9 @@ namespace binary
             }
             m_ppBlob = std::make_shared<std::unique_ptr<const uint8_t[]>>(std::move(pBlob));
         }
+        /**
+         * @copydoc binary_chunk_interface::create_sub_chunk
+         */
         virtual std::shared_ptr<binary_chunk_interface> create_sub_chunk(const size_t &offset, const size_t &size) const override final
         {
             if (offset + size > m_size)
@@ -72,39 +133,68 @@ namespace binary
             pRet->m_size = size;
             return std::dynamic_pointer_cast<binary_chunk_interface>(pRet);
         }
+        /**
+         * @copydoc binary_chunk_interface::size
+         */
         virtual size_t size() const override final
         {
             return m_size;
         }
+        /**
+         * @copydoc binary_chunk_interface::get_data
+         */
         virtual const uint8_t *get_data() const override final
         {
             return m_ppBlob->get() + m_offset;
         }
+        /**
+         * @copydoc binary_chunk_interface::get_type
+         */
         virtual CHUNK_TYPE get_type() const override final
         {
             return CHUNK_TYPE::MEMORY;
         }
+        /**
+         * @copydoc binary_chunk_interface::clone
+         */
         virtual std::unique_ptr<binary_chunk_interface> clone() const override
         {
             return std::make_unique<binary_chunk_memory>(*this);
         }
+        /**
+         * @copydoc binary_chunk_interface::downscale_size
+         */
         virtual void downscale_size(const size_t &targeSize) override final
         {
             m_size = targeSize;
         }
     };
 
+    /**
+     * @brief Factory for creating binary chunks.
+     */
     class binary_chunk_factory
     {
     public:
+        /**
+         * @brief Chunk creation strategy.
+         */
         enum class CREATE_STRATEGY
         {
-            AUTO,
-            MEMORY
+            AUTO,   ///< Automatically select strategy
+            MEMORY  ///< Always use memory chunk
         };
     private:
         CREATE_STRATEGY m_create_strategy = CREATE_STRATEGY::AUTO;
     public:
+        /**
+         * @brief Create a chunk using the current strategy.
+         * @param pBlob The data pointer.
+         * @param size The size of the data.
+         * @param offset The offset in the data.
+         * @return Shared pointer to the created chunk.
+         * @throws binary_exception if strategy is unknown.
+         */
         std::shared_ptr<binary_chunk_interface> create_chunk(std::unique_ptr<const uint8_t[]> &&pBlob, const size_t &size, const size_t &offset = 0) const
         {
             switch (m_create_strategy)
@@ -118,20 +208,34 @@ namespace binary
         }
     };
 
+    /**
+     * @brief Main class for binary editing.
+     */
     class binary_editor
     {
     private:
-        mutable std::deque<std::shared_ptr<binary_chunk_interface>> m_pChunks;
-        binary_chunk_factory m_binary_chunk_factory;
-        bool m_auto_tidy = false;
-        size_t m_auto_tidy_size = 0;
+        mutable std::deque<std::shared_ptr<binary_chunk_interface>> m_pChunks; ///< Chunks managed by the editor
+        binary_chunk_factory m_binary_chunk_factory; ///< Factory for creating chunks
+        bool m_auto_tidy = false; ///< Whether to auto tidy chunks
+        size_t m_auto_tidy_size = 0; ///< Auto tidy threshold
     public:
+        /**
+         * @brief Default constructor.
+         */
         binary_editor() = default;
+        /**
+         * @brief Construct editor from a blob.
+         * @param pBlob The data pointer.
+         * @param size The size of the data.
+         */
         binary_editor(std::unique_ptr<const uint8_t[]> &&pBlob, const size_t &size)
         {
             m_pChunks.push_back(m_binary_chunk_factory.create_chunk(std::move(pBlob), size));
         }
-        
+        /**
+         * @brief Get the total size of all chunks.
+         * @return Total size in bytes.
+         */
         size_t size() const
         {
             size_t ret = 0;
@@ -141,6 +245,9 @@ namespace binary
             }
             return ret;
         }
+        /**
+         * @brief Merge all chunks into one.
+         */
         void tidy_chunks() const
         {
             size_t totalSize = size();
@@ -153,11 +260,22 @@ namespace binary
             }
             *const_cast<binary_editor *>(this) = binary_editor(std::move(pBlob), totalSize);
         }
+        /**
+         * @brief Get the pointer to the merged data.
+         * @return Pointer to the data.
+         */
         const void *get_data() const
         {
             tidy_chunks();
             return m_pChunks.front()->get_data();
         }
+        /**
+         * @brief Create a sub-editor from a range.
+         * @param offset The offset to start from.
+         * @param size The size of the sub-editor.
+         * @return The sub-editor.
+         * @throws binary_exception if range is invalid.
+         */
         binary_editor create_sub_editor(const size_t &offset, const size_t size) const
         {
             // check size
@@ -202,25 +320,48 @@ namespace binary
 
             return ret;
         }
-
+        /**
+         * @brief Append another editor's chunks to the back.
+         * @param backEditor The editor to append.
+         */
         void push_back(const binary_editor &backEditor)
         {
             std::copy(backEditor.m_pChunks.begin(), backEditor.m_pChunks.end(), std::back_inserter(m_pChunks));
         }
+        /**
+         * @brief Emplace a new chunk at the back.
+         * @tparam Args Constructor arguments for the chunk.
+         * @param args Arguments to forward.
+         */
         template<typename... Args>
         void emplace_back(Args &&... args)
         {
             m_pChunks.push_back(m_binary_chunk_factory.create_chunk(std::forward<Args>(args)...));
         }
+        /**
+         * @brief Append another editor's chunks to the front.
+         * @param frontEditor The editor to prepend.
+         */
         void push_front(const binary_editor &frontEditor)
         {
             std::copy(frontEditor.m_pChunks.rbegin(), frontEditor.m_pChunks.rend(), std::front_inserter(m_pChunks));
         }
+        /**
+         * @brief Emplace a new chunk at the front.
+         * @tparam Args Constructor arguments for the chunk.
+         * @param args Arguments to forward.
+         */
         template<typename... Args>
         void emplace_front(Args &&... args)
         {
             m_pChunks.push_front(m_binary_chunk_factory.create_chunk(std::forward<Args>(args)...));
         }
+        /**
+         * @brief Insert another editor's chunks at a specific offset.
+         * @param offset The offset to insert at.
+         * @param editor The editor whose chunks to insert.
+         * @throws binary_exception if offset is invalid.
+         */
         void insert(const size_t &offset, const binary_editor &editor)
         {
             if (offset > size())
@@ -239,27 +380,30 @@ namespace binary
 
                 if (currentOffset == offset)
                 {
-                    // 在當前位置插入 editor 的 chunks
+                    // Insert editor's chunks at current position
                     m_pChunks.insert(iter, editor.m_pChunks.begin(), editor.m_pChunks.end());
                 }
                 else
                 {
-                    // 將當前 chunk 分割為兩部分
+                    // Split current chunk into two parts
                     auto pBeginChunk = (*iter)->create_sub_chunk(0, offset - currentOffset);
                     auto pEndChunk = (*iter)->create_sub_chunk(offset - currentOffset, (*iter)->size() - (offset - currentOffset));
 
-                    // 替換當前 chunk，並插入 editor 的 chunks
+                    // Replace current chunk and insert editor's chunks
                     iter = m_pChunks.erase(iter);
                     iter = ++m_pChunks.insert(iter, pBeginChunk);
                     iter = ++m_pChunks.insert(iter, editor.m_pChunks.begin(), editor.m_pChunks.end());
                     iter = ++m_pChunks.insert(iter, pEndChunk);
                 }
-                return; // 插入完成後退出
+                return; // Exit after insertion
             }
 
-            // 如果 offset 恰好在末尾，直接追加 editor 的 chunks
+            // If offset is at the end, just append editor's chunks
             m_pChunks.insert(m_pChunks.end(), editor.m_pChunks.begin(), editor.m_pChunks.end());
         }
+        /**
+         * @brief Clear all chunks.
+         */
         void clear()
         {
             m_pChunks.clear();
