@@ -3,6 +3,8 @@
 #include <string>
 #include <deque>
 #include <iterator>
+#include <cstring>
+#include <variant>
 
 namespace binary
 {
@@ -98,6 +100,7 @@ namespace binary
         std::shared_ptr<const std::unique_ptr<const uint8_t[]>> m_ppBlob = nullptr;
         size_t m_size = 0;
         size_t m_offset = 0;
+
     public:
         /**
          * @brief Construct a memory chunk.
@@ -181,11 +184,13 @@ namespace binary
          */
         enum class CREATE_STRATEGY
         {
-            AUTO,   ///< Automatically select strategy
-            MEMORY  ///< Always use memory chunk
+            AUTO,  ///< Automatically select strategy
+            MEMORY ///< Always use memory chunk
         };
+
     private:
         CREATE_STRATEGY m_create_strategy = CREATE_STRATEGY::AUTO;
+
     public:
         /**
          * @brief Create a chunk using the current strategy.
@@ -215,9 +220,9 @@ namespace binary
     {
     private:
         mutable std::deque<std::shared_ptr<binary_chunk_interface>> m_pChunks; ///< Chunks managed by the editor
-        binary_chunk_factory m_binary_chunk_factory; ///< Factory for creating chunks
-        bool m_auto_tidy = false; ///< Whether to auto tidy chunks
-        size_t m_auto_tidy_size = 0; ///< Auto tidy threshold
+        binary_chunk_factory m_binary_chunk_factory;                           ///< Factory for creating chunks
+        bool m_auto_tidy = false;                                              ///< Whether to auto tidy chunks
+        size_t m_auto_tidy_size = 0;                                           ///< Auto tidy threshold
     public:
         /**
          * @brief Default constructor.
@@ -231,6 +236,18 @@ namespace binary
         binary_editor(std::unique_ptr<const uint8_t[]> &&pBlob, const size_t &size)
         {
             m_pChunks.push_back(m_binary_chunk_factory.create_chunk(std::move(pBlob), size));
+        }
+
+        /**
+         * @brief Construct editor from a blob.
+         * @param pBlob The data pointer.
+         * @param size The size of the data.
+         */
+        binary_editor(const uint8_t *pBlob, const size_t &size)
+        {
+            auto buffer = std::make_unique<uint8_t[]>(size);
+            memcpy(buffer.get(), pBlob, size);
+            *this = binary_editor(std::move(buffer), size);
         }
         /**
          * @brief Get the total size of all chunks.
@@ -333,8 +350,8 @@ namespace binary
          * @tparam Args Constructor arguments for the chunk.
          * @param args Arguments to forward.
          */
-        template<typename... Args>
-        void emplace_back(Args &&... args)
+        template <typename... Args>
+        void emplace_back(Args &&...args)
         {
             m_pChunks.push_back(m_binary_chunk_factory.create_chunk(std::forward<Args>(args)...));
         }
@@ -351,8 +368,8 @@ namespace binary
          * @tparam Args Constructor arguments for the chunk.
          * @param args Arguments to forward.
          */
-        template<typename... Args>
-        void emplace_front(Args &&... args)
+        template <typename... Args>
+        void emplace_front(Args &&...args)
         {
             m_pChunks.push_front(m_binary_chunk_factory.create_chunk(std::forward<Args>(args)...));
         }
@@ -408,5 +425,133 @@ namespace binary
         {
             m_pChunks.clear();
         }
+    };
+}
+
+namespace reader
+{
+    /**
+     * @brief Reads a value of type T from a binary_editor at a given offset.
+     *
+     * This class does not allow copy or move operations.
+     *
+     * @tparam T The type to read.
+     *
+     * @code
+     * // Example usage:
+     * std::vector<uint8_t> blob = {2, 99, 255};
+     * binary::binary_editor editor(blob.data(), blob.size());
+     * // Read first and second byte using binary_reader
+     * reader::binary_reader<uint8_t> value1(editor, 0);
+     * reader::binary_reader<uint8_t> value2(editor, value1);
+     * uint8_t v1 = value1.get(); // v1 == 2
+     * uint8_t v2 = value2.get(); // v2 == 99
+     *
+     * // Or wrap as a struct:
+     * struct simplesample {
+     *     binary::binary_editor editor; ///< The binary editor instance.
+     *     reader::binary_reader<uint8_t> value1; ///< Reads the first byte from the editor.
+     *     reader::binary_reader<uint8_t> value2; ///< Reads the next byte from the editor (offset = value1).
+     *     simplesample(binary::binary_editor &&editor_)
+     *         : editor(std::move(editor_)),
+     *           value1(editor, 0),
+     *           value2(editor, value1)
+     *     {}
+     * };
+     * @endcode
+     */
+    template <typename T>
+    class binary_reader
+    {
+    private:
+        /**
+         * @brief Holds either a direct offset or a reference to another binary_reader for dynamic offset calculation.
+         */
+        std::variant<size_t, std::reference_wrapper<binary_reader<size_t>>> offset_impl = 0;
+        /**
+         * @brief Reference to the binary_editor instance.
+         */
+        binary::binary_editor &editor;
+
+        /**
+         * @brief Calculates the offset for reading the value.
+         * @return The offset as size_t.
+         */
+        size_t GetOffset()
+        {
+            return std::visit(
+                [](auto &value) -> size_t
+                {
+                    if constexpr (std::is_same_v<std::decay_t<decltype(value)>, size_t>)
+                    {
+                        return value;
+                    }
+                    else
+                    {
+                        return value.get();
+                    }
+                },
+                offset_impl);
+        }
+
+    public:
+        /**
+         * @brief Construct a binary_reader with a direct offset.
+         * @param editor_ Reference to the binary_editor.
+         * @param offset The offset to read from.
+         */
+        binary_reader(binary::binary_editor &editor_, size_t offset)
+            : offset_impl(offset),
+              editor(editor_)
+        {
+        }
+
+        /**
+         * @brief Construct a binary_reader with an offset based on another binary_reader.
+         * @param editor_ Reference to the binary_editor.
+         * @param offset Reference to another binary_reader<size_t> for dynamic offset.
+         */
+        binary_reader(binary::binary_editor &editor_, binary_reader<size_t> &offset)
+            : offset_impl(std::reference_wrapper<binary_reader<size_t>>(offset)),
+              editor(editor_)
+        {
+        }
+
+        /**
+         * @brief Get the value from the binary editor at the computed offset.
+         * @return Reference to the value of type T.
+         */
+        const T &get()
+        {
+            const void *data = editor.get_data();
+            return *((T *)((const char *)data + GetOffset()));
+        }
+
+        /**
+         * @brief Implicit conversion to the value.
+         * @return Reference to the value of type T.
+         */
+        operator const T &()
+        {
+            const void *data = editor.get_data();
+            return *((T *)((const char *)data + GetOffset()));
+        }
+
+        /**
+         * @brief Deleted copy constructor.
+         */
+        binary_reader(const binary_reader &) = delete;
+        /**
+         * @brief Deleted copy assignment operator.
+         */
+        binary_reader &operator=(const binary_reader &) = delete;
+        /**
+         * @brief Deleted move constructor.
+         */
+        binary_reader(binary_reader &&) = delete;
+        /**
+         * @brief Deleted move assignment operator.
+         */
+        binary_reader &operator=(binary_reader &&) = delete;
     };
 }
