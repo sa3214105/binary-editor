@@ -126,6 +126,53 @@ TEST(BinaryEditorTest, TidyChunks)
     }
 }
 
+TEST(BinaryContainerReaderTest, BasicUsage)
+{
+    std::vector<uint8_t> blob = {10, 20, 30, 40, 50, 60, 70, 80};
+    binary_editor editor(blob.data(), blob.size());
+    binary_container_reader<uint8_t> container(editor, 2, 4);
+
+    EXPECT_EQ(container.size(), 4);
+    EXPECT_EQ(container[0], 30);
+    EXPECT_EQ(container[1], 40);
+    EXPECT_EQ(container[2], 50);
+    EXPECT_EQ(container[3], 60);
+
+    // at() 越界
+    EXPECT_THROW(container.at(4), reader_exception);
+
+    // operator[] 越界
+    EXPECT_THROW(container[4], reader_exception);
+
+    // iterator 正確遍歷
+    std::vector<uint8_t> values;
+    for (auto it = container.begin(); it != container.end(); ++it) {
+        values.push_back(*it);
+    }
+    EXPECT_EQ(values, (std::vector<uint8_t>{30, 40, 50, 60}));
+}
+
+TEST(BinaryContainerReaderTest, LargeData)
+{
+    // 建立 10000 筆遞增資料
+    std::vector<uint32_t> blob(10000);
+    for (size_t i = 0; i < blob.size(); ++i) {
+        blob[i] = static_cast<uint32_t>(i * 2);
+    }
+    binary_editor editor(reinterpret_cast<uint8_t*>(blob.data()), blob.size() * sizeof(uint32_t));
+    binary_container_reader<uint32_t> container(editor, 100 * sizeof(uint32_t), 5000);
+
+    EXPECT_EQ(container.size(), 5000);
+    EXPECT_EQ(container[0], 200);           // 第 100 筆
+    EXPECT_EQ(container[4999], 10198);      // 第 5099 筆
+
+    // iterator 正確遍歷
+    size_t idx = 0;
+    for (auto it = container.begin(); it != container.end(); ++it, ++idx) {
+        EXPECT_EQ(*it, static_cast<uint32_t>((idx + 100) * 2));
+    }
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

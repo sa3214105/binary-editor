@@ -304,7 +304,7 @@ namespace binary
 
             // clone data
             size_t currentOffset = 0;
-            size_t retSize = 0;
+            size_t currentChunkSize = 0;
             binary_editor ret;
             for (const auto &pChunk : m_pChunks)
             {
@@ -316,20 +316,19 @@ namespace binary
                 }
 
                 // clone chunk and resize
-                auto pNewChunk = pChunk->clone();
-                if (retSize + pChunk->size() > size)
+
+                std::shared_ptr<binary_chunk_interface> pNewChunk;
+                auto needSize = size - currentChunkSize;
+                if (needSize > pChunk->size())
                 {
-                    pNewChunk->downscale_size(size - retSize);
-                    retSize = size;
+                    needSize = pChunk->size();
                 }
-                else
-                {
-                    retSize += pChunk->size();
-                }
+                pNewChunk = pChunk->create_sub_chunk(offset - currentOffset, needSize);
+                currentChunkSize += needSize;
 
                 // push in chunk and check the size
                 ret.m_pChunks.push_back(std::move(pNewChunk));
-                if (retSize == size)
+                if (currentChunkSize == size)
                 {
                     break;
                 }
@@ -430,6 +429,43 @@ namespace binary
 
 namespace reader
 {
+    /**
+     * @brief Exception class for errors in the reader namespace.
+     *
+     * Used for error handling in binary_reader and binary_container_reader operations.
+     */
+    class reader_exception : public std::exception
+    {
+    protected:
+        std::string m_error_msg;
+
+    public:
+        /**
+         * @brief Construct a reader_exception with an error message.
+         * @param errorMsg The error message.
+         */
+        reader_exception(const std::string &errorMsg)
+            : m_error_msg(errorMsg)
+        {
+        }
+        /**
+         * @brief Construct a reader_exception with an rvalue error message.
+         * @param errorMsg The error message.
+         */
+        reader_exception(std::string &&errorMsg)
+            : m_error_msg(std::move(errorMsg))
+        {
+        }
+        /**
+         * @brief Get the error message.
+         * @return The error message as a C-string.
+         */
+        virtual const char *what() const noexcept override
+        {
+            return m_error_msg.c_str();
+        }
+    };
+
     /**
      * @brief Reads a value of type T from a binary_editor at a given offset.
      *
@@ -548,5 +584,192 @@ namespace reader
          * @brief Deleted move assignment operator.
          */
         binary_reader &operator=(binary_reader &&) = delete;
+    };
+
+    /**
+     * @brief Provides STL-like container access to a sequence of type T in a binary_editor.
+     *
+     * Supports random access, bounds checking, and iteration.
+     *
+     * @tparam T The type to read.
+     *
+     * @code
+     * std::vector<uint8_t> blob = {10, 20, 30, 40, 50, 60};
+     * binary::binary_editor editor(blob.data(), blob.size());
+     * reader::binary_container_reader<uint8_t> container(editor, 2, 3); // Reads 30, 40, 50
+     * for (auto v : container) { ... }
+     * @endcode
+     */
+    template <typename T>
+    class binary_container_reader
+    {
+    private:
+        /**
+         * @brief Internal sub-editor pointing to the data range.
+         */
+        binary::binary_editor editor; ///< Reference to the binary_editor instance.
+        /**
+         * @brief Number of elements.
+         */
+        size_t element_size = 0;      ///< Size of the data to read.
+    public:
+        /**
+         * @brief Random access iterator for STL-style traversal.
+         */
+        class iterator
+        {
+        private:
+            /**
+             * @brief Reference to the sub-editor.
+             */
+            const binary::binary_editor &editor;
+            /**
+             * @brief Current iterator index.
+             */
+            size_t index = 0;
+
+        public:
+            using value_type = T;
+            using difference_type = std::ptrdiff_t;
+            using pointer = T *;
+            using reference = T &;
+            using iterator_category = std::random_access_iterator_tag;
+
+            /**
+             * @brief Construct an iterator.
+             * @param editor_ Reference to the sub-editor.
+             * @param index_ Starting index.
+             */
+            iterator(const binary::binary_editor &editor_, size_t index_)
+                : editor(editor_), index(index_)
+            {
+            }
+            /**
+             * @brief Dereference to get the current element.
+             * @return Const reference to the element of type T.
+             */
+            const T &operator*() const
+            {
+                return *(((T *)editor.get_data()) + index);
+            }
+            /**
+             * @brief Post-increment (increments by value).
+             * @param value Increment amount.
+             * @return Reference to self.
+             */
+            iterator &operator++(int value)
+            {
+                index += value;
+                return *this;
+            }
+            /**
+             * @brief Pre-increment.
+             * @return Reference to self.
+             */
+            iterator &operator++()
+            {
+                ++index;
+                return *this;
+            }
+            /**
+             * @brief Equality comparison.
+             * @param other Another iterator.
+             * @return True if equal.
+             */
+            bool operator==(const iterator &other) const
+            {
+                return index == other.index;
+            }
+            /**
+             * @brief Inequality comparison.
+             * @param other Another iterator.
+             * @return True if not equal.
+             */
+            bool operator!=(const iterator &other) const
+            {
+                return index != other.index;
+            }
+            /**
+             * @brief Less-than comparison.
+             * @param other Another iterator.
+             * @return True if less.
+             */
+            bool operator<(const iterator &other) const
+            {
+                return index < other.index;
+            }
+            /**
+             * @brief Greater-than comparison.
+             * @param other Another iterator.
+             * @return True if greater.
+             */
+            bool operator>(const iterator &other) const
+            {
+                return index > other.index;
+            }
+        };
+
+        /**
+         * @brief Construct a container_reader.
+         * @param editor_ Reference to the binary_editor.
+         * @param offset Starting offset.
+         * @param element_size_ Number of elements.
+         */
+        binary_container_reader(binary::binary_editor &editor_, size_t offset, size_t element_size_)
+            : editor(editor_.create_sub_editor(offset, sizeof(T) * element_size_)), element_size(element_size_)
+        {
+        }
+        /**
+         * @brief Get iterator to the beginning.
+         * @return Iterator to the first element.
+         */
+        iterator begin() const
+        {
+            return iterator(editor, 0);
+        }
+        /**
+         * @brief Get iterator to the end.
+         * @return Iterator to one past the last element.
+         */
+        iterator end() const
+        {
+            return iterator(editor, element_size);
+        }
+        /**
+         * @brief Random access to elements.
+         * @param index Element index.
+         * @return Value of the element.
+         * @throws reader_exception if index is out of range.
+         */
+        T operator[](size_t index) const
+        {
+            if (index >= element_size)
+            {
+                throw reader_exception("binary_container_reader::operator[] err : index out of range!");
+            }
+            return *(((T *)editor.get_data()) + index);
+        }
+        /**
+         * @brief Random access with bounds checking.
+         * @param index Element index.
+         * @return Value of the element.
+         * @throws reader_exception if index is out of range.
+         */
+        T at(size_t index) const
+        {
+            if (index >= element_size)
+            {
+                throw reader_exception("binary_container_reader::at err : index out of range!");
+            }
+            return *(((T *)editor.get_data()) + index);
+        }
+        /**
+         * @brief Get the number of elements.
+         * @return Number of elements.
+         */
+        size_t size() const
+        {
+            return element_size;
+        }
     };
 }
