@@ -1,0 +1,55 @@
+name: CI_GCC
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg
+            vcpkg_installed
+            ~/.cache/vcpkg
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake git
+
+      - name: Install vcpkg
+        run: |
+          if [ ! -d "./vcpkg" ]; then
+            git clone https://github.com/microsoft/vcpkg.git
+            ./vcpkg/bootstrap-vcpkg.sh
+          fi
+
+      - name: Install GTest via vcpkg
+        run: ./vcpkg/vcpkg install gtest
+
+      - name: Cache build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: build-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            build-${{ runner.os }}-
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+
+      - name: Build
+        run: cmake --build build --config Debug
+
+      - name: Run unit tests
+        run: ctest --test-dir build --output-on-failure
