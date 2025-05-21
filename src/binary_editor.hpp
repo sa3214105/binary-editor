@@ -498,7 +498,7 @@ namespace reader
         /**
          * @brief Holds either a direct offset or a reference to another binary_reader for dynamic offset calculation.
          */
-        std::variant<size_t, std::reference_wrapper<binary_reader<size_t>>> offset_impl = 0;
+        std::variant<size_t, std::reference_wrapper<binary_reader<size_t>>> offset_impl = size_t{0};
         /**
          * @brief Reference to the binary_editor instance.
          */
