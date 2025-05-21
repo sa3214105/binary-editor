@@ -352,7 +352,7 @@ namespace binary
         template <typename... Args>
         void emplace_back(Args &&...args)
         {
-            m_pChunks.push_back(m_binary_chunk_factory.create_chunk(std::forward<Args>(args)...));
+            push_back(binary_editor(std::forward<Args>(args)...));
         }
         /**
          * @brief Append another editor's chunks to the front.
@@ -370,7 +370,7 @@ namespace binary
         template <typename... Args>
         void emplace_front(Args &&...args)
         {
-            m_pChunks.push_front(m_binary_chunk_factory.create_chunk(std::forward<Args>(args)...));
+            push_front(binary_editor(std::forward<Args>(args)...));
         }
         /**
          * @brief Insert another editor's chunks at a specific offset.
@@ -772,4 +772,45 @@ namespace reader
             return element_size;
         }
     };
+}
+
+namespace writer
+{
+    class writer_exception : public std::exception
+    {
+    protected:
+        std::string m_error_msg;
+    public: 
+        writer_exception(const std::string &errorMsg)
+            : m_error_msg(errorMsg)
+        {
+        }
+        writer_exception(std::string &&errorMsg)
+            : m_error_msg(std::move(errorMsg))
+        {
+        }
+        virtual const char *what() const noexcept override
+        {
+            return m_error_msg.c_str();
+        }
+    };
+
+    template <typename T>
+    void write_back(binary::binary_editor &editor, const T &value)
+    {
+        binary::binary_editor a((const uint8_t*)&value, sizeof(T));
+        editor.emplace_back((const uint8_t*)&value, sizeof(T));
+    }
+
+    template <typename T>
+    void write_front(binary::binary_editor &editor, const T &value)
+    {
+        editor.emplace_front((const uint8_t*)&value, sizeof(T));
+    }
+
+    template <typename T>
+    void write_at(binary::binary_editor &editor, const size_t &offset, const T &value)
+    {
+        editor.insert(offset, binary::binary_editor(&value, sizeof(T)));
+    }
 }
