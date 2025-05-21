@@ -23,7 +23,7 @@ jobs:
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
 
       - name: Install dependencies
-        run: choco install cmake ninja git -y
+        run: choco install cmake git -y
 
       - name: Install vcpkg
         run: |
