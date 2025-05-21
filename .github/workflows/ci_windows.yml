@@ -1,0 +1,54 @@
+name: CI_Windows
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg
+            vcpkg_installed
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+
+      - name: Install dependencies
+        run: choco install cmake ninja git -y
+
+      - name: Install vcpkg
+        run: |
+          if (!(Test-Path "./vcpkg")) {
+            git clone https://github.com/microsoft/vcpkg.git
+            ./vcpkg/bootstrap-vcpkg.bat
+          }
+
+      - name: Install GTest via vcpkg
+        run: ./vcpkg/vcpkg.exe install gtest
+
+      - name: Cache build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: build-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            build-${{ runner.os }}-
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -S . -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake
+
+      - name: Build
+        run: cmake --build build --config Debug
+
+      - name: Run unit tests
+        run: ctest --test-dir build --output-on-failure

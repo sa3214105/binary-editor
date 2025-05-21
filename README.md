@@ -1,6 +1,8 @@
 # Binary Editor
 
-![CI](https://github.com/sa3214105/binary-editor/actions/workflows/ci.yml/badge.svg)
+![CI_GNU](https://github.com/sa3214105/binary-editor/actions/workflows/ci_gnu.yml/badge.svg)
+![CI_CLANG](https://github.com/sa3214105/binary-editor/actions/workflows/ci_clang.yml/badge.svg)
+![CI_WINDOWS](https://github.com/sa3214105/binary-editor/actions/workflows/ci_windows.yml/badge.svg)
 [![Docs](https://img.shields.io/badge/docs-latest-blue)](https://sa3214105.github.io/binary-editor/)
 
 [**API Documentation**](https://sa3214105.github.io/binary-editor/)
